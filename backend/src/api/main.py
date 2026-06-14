@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.routes import predict, alerts, explain, upload, live
+from src.api.startup import startup_check
 
 app = FastAPI(title="MuleNet API", version="1.0.0")
 
@@ -20,6 +21,11 @@ app.include_router(alerts.router, prefix="/api")
 app.include_router(explain.router, prefix="/api")
 app.include_router(upload.router, prefix="/api")
 app.include_router(live.router, prefix="/api")
+
+
+@app.on_event("startup")
+async def on_startup():
+    startup_check()
 
 
 @app.get("/")

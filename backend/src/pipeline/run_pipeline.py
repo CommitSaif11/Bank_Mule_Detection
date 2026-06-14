@@ -1,4 +1,5 @@
 import os
+import sys
 
 import joblib
 import pandas as pd
@@ -183,3 +184,17 @@ def _run(raw_df, has_target, ctx):
         "feature_names": feature_names,
         "has_target": has_target,
     }
+
+
+if __name__ == "__main__":
+    dataset_path = "data/DataSet.csv"
+    if not os.path.exists(dataset_path):
+        print(
+            "ERROR: DataSet.csv not found in backend/data/\n"
+            "Please add DataSet.csv to backend/data/ and rebuild."
+        )
+        sys.exit(1)
+
+    raw_df = pd.read_csv(dataset_path)
+    run_full_pipeline(raw_df)
+    print("Pipeline complete. Models saved to models/ and saved_models/.")
