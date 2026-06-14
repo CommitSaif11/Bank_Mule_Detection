@@ -1,3 +1,9 @@
+# ===== CLAUDE =====
+CLAUDE.md
+backend/CLAUDE.md
+frontend/CLAUDE.md
+backend/.claude/
+
 # ===== PYTHON =====
 __pycache__/
 *.py[cod]
