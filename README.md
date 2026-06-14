@@ -6,58 +6,222 @@ generates explainable investigation reports.
 
 ## Project Structure
 
+```
 mule_account_detection/
 ├── backend/          FastAPI + ML pipeline
 └── frontend/         React + Tailwind dashboard
+```
 
 ## Prerequisites
 
-- Python 3.10+
-- Node.js 18+
-- Git
+- **Python 3.10+**
+- **Node.js 18+**
+- **Git**
+- **uv** (fast Python package/environment manager — instructions below)
 
-## Setup Instructions
+This guide assumes **no prior setup** — every command can be copy-pasted as-is.
 
-### Step 1 — Clone the repository
-git clone <your-repo-url>
-cd mule_account_detection
+---
 
-### Step 2 — Backend setup
+## Step 1 — Clone the repository
+
+```bash
+git clone https://github.com/CommitSaif11/Bank_Mule_Detection.git
+cd Bank_Mule_Detection
+```
+
+---
+
+## Step 2 — Install Python 3.10
+
+Check if you already have it:
+
+```bash
+python --version
+```
+
+If the version shown is **not** 3.10.x, install Python 3.10:
+
+- **Windows**: Download from https://www.python.org/downloads/release/python-31011/ and run the installer. During install, check **"Add Python to PATH"**.
+- **Mac** (using Homebrew):
+  ```bash
+  brew install python@3.10
+  ```
+- **Linux** (Ubuntu/Debian):
+  ```bash
+  sudo apt update
+  sudo apt install python3.10 python3.10-venv
+  ```
+
+---
+
+## Step 3 — Install `uv`
+
+`uv` is a fast Python package and virtual environment manager (replacement for `pip` + `venv`). We use it to create the backend environment and install dependencies.
+
+Check if `uv` is already installed:
+
+```bash
+uv --version
+```
+
+If not found, install it:
+
+- **Windows (PowerShell)**:
+  ```powershell
+  powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+  ```
+- **Mac / Linux**:
+  ```bash
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  ```
+
+After installation, **close and reopen your terminal**, then verify:
+
+```bash
+uv --version
+```
+
+---
+
+## Step 4 — Backend setup
+
+Navigate into the `backend/` folder:
+
+```bash
 cd backend
-python -m venv .venv
+```
 
-Windows:
-.venv\Scripts\activate
+### 4.1 — Create a virtual environment (Python 3.10) using `uv`
 
-Mac/Linux:
-source .venv/bin/activate
+```bash
+uv venv --python 3.10 .venv
+```
 
-pip install -r requirements.txt
+This creates a `.venv/` folder inside `backend/` containing an isolated Python 3.10 environment.
 
-### Step 3 — Add the dataset
-Place DataSet.csv inside backend/data/
-(Dataset is not included in the repo due to size)
+### 4.2 — Activate the virtual environment
 
-### Step 4 — Run the ML pipeline
-This generates all model files needed to run the API.
+- **Windows (PowerShell)**:
+  ```powershell
+  .venv\Scripts\activate
+  ```
+- **Mac / Linux**:
+  ```bash
+  source .venv/bin/activate
+  ```
+
+You should now see `(.venv)` at the start of your terminal prompt.
+
+### 4.3 — Install all dependencies from `requirements.txt`
+
+Using `uv` (recommended — much faster than plain `pip`):
+
+```bash
+uv pip install -r requirements.txt --python .venv/Scripts/python.exe
+```
+
+> On Mac/Linux, use the Unix path instead:
+> ```bash
+> uv pip install -r requirements.txt --python .venv/bin/python
+> ```
+
+This installs FastAPI, LightGBM, XGBoost, SHAP, scikit-learn, imbalanced-learn, pandas, numpy, and all other required packages.
+
+---
+
+## Step 5 — Add the dataset
+
+The dataset is **not included** in this repository (too large for GitHub).
+
+1. Obtain `DataSet.csv` from the project owner.
+2. Place it inside the `backend/data/` folder so the path is:
+   ```
+   backend/data/DataSet.csv
+   ```
+
+---
+
+## Step 6 — Run the ML pipeline
+
+This step trains all models (LightGBM, XGBoost, Random Forest, Isolation Forest, KMeans) and generates every `.pkl` file the API needs. It must be run **once** before starting the backend (and again any time you upload a new dataset, if not done automatically via the Upload page).
+
+Make sure you are inside `backend/` and your virtual environment is activated, then run:
+
+```bash
 python -m src.pipeline.run_pipeline
+```
 
-This will take approximately 2-3 minutes.
-It creates all .pkl files in backend/models/ and
-backend/saved_models/
+This will take approximately **2-3 minutes**. When it finishes, you will see new files created in:
+- `backend/models/` (e.g. `lgbm_model.pkl`, `imputer.pkl`, `scaler.pkl`, `selected_features.pkl`)
+- `backend/saved_models/` (e.g. `isolation_forest.pkl`, `kmeans_typology.pkl`, `risk_scores.csv`, `feature_medians.pkl`)
 
-### Step 5 — Start the backend
+---
+
+## Step 7 — Start the backend server
+
+Still inside `backend/`, with the virtual environment activated, run:
+
+```bash
 uvicorn src.api.main:app --reload --port 8000
+```
 
-API will be available at http://localhost:8000
-API docs at http://localhost:8000/docs
+If that command is not found, run it through the venv's Python directly:
 
-### Step 6 — Frontend setup (new terminal)
+```bash
+.venv/Scripts/python -m uvicorn src.api.main:app --reload --port 8000
+```
+
+Once running:
+- API base URL: http://localhost:8000
+- Interactive API docs (Swagger UI): http://localhost:8000/docs
+- Health check: http://localhost:8000/api/health
+
+Keep this terminal window open — the backend must stay running.
+
+---
+
+## Step 8 — Frontend setup
+
+Open a **new terminal window** (leave the backend running in the first one).
+
+### 8.1 — Navigate to the frontend folder
+
+```bash
 cd frontend
-npm install
-npm run dev
+```
 
-Frontend will be available at http://localhost:5173
+### 8.2 — Install Node dependencies
+
+```bash
+npm install
+```
+
+### 8.3 — Start the frontend dev server
+
+```bash
+npm run dev
+```
+
+Once running, open your browser to:
+
+```
+http://localhost:5173
+```
+
+The dashboard will load and connect automatically to the backend at `http://localhost:8000` (configured via `frontend/.env.development`).
+
+---
+
+## Step 9 — Verify everything works
+
+1. Open http://localhost:5173 — you should see the MuleNet dashboard with stats populated.
+2. Open http://localhost:8000/docs — you should see the FastAPI Swagger documentation.
+3. If the dashboard shows an error/empty state, confirm:
+   - The backend terminal shows no errors and is still running.
+   - Step 6 (pipeline run) completed successfully and created `.pkl` files.
+
+---
 
 ## API Endpoints
 
@@ -105,11 +269,20 @@ Frontend: React, Vite, Tailwind CSS, Recharts,
 
 ## Deployment
 
-See Render deployment guide below.
-
 Backend: Deploy as Web Service (Python)
-Start command: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
+```bash
+uvicorn src.api.main:app --host 0.0.0.0 --port $PORT
+```
 
 Frontend: Deploy as Static Site
-Build command: npm run build
-Publish directory: dist
+```bash
+npm run build
+```
+Publish directory: `dist`
+
+## Troubleshooting
+
+- **`uv: command not found`** — restart your terminal after installing `uv`, or ensure `~/.local/bin` (Mac/Linux) or `%USERPROFILE%\.local\bin` (Windows) is in your `PATH`.
+- **`uvicorn: command not found`** — use `.venv/Scripts/python -m uvicorn ...` (Windows) or `.venv/bin/python -m uvicorn ...` (Mac/Linux) instead.
+- **Port 8000 already in use** — stop the existing process or run on a different port: `uvicorn src.api.main:app --reload --port 8001` (and update `frontend/.env.development` accordingly).
+- **Frontend shows "backend unreachable"** — confirm the backend is running on port 8000 and `frontend/.env.development` has `VITE_API_URL=http://localhost:8000`.
