@@ -60,6 +60,11 @@ uv --version
 ```
 
 > **Note on Python versions**: You do **not** need to manually install Python 3.10. `uv` can download and manage Python versions for you automatically — when you run `uv venv --python 3.10 .venv` in Step 3, `uv` will fetch Python 3.10 itself if it isn't already available on your system.
+>
+> If you'd like to install it ahead of time (optional), run:
+> ```bash
+> uv python install 3.10
+> ```
 
 ---
 
