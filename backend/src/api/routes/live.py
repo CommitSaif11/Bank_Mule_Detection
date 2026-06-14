@@ -1,76 +1,25 @@
 import time
 
-import joblib
 import numpy as np
 import pandas as pd
-import shap
 from fastapi import APIRouter, HTTPException
 
 from src.api.utils import clean_record
-from src.features.engineer import F3889_MAP, F3891_MAP, LOG1P_COLS, MISSING_FLAG_COLS
+from src.api.dependencies import (
+    get_lgbm_model, get_imputer, get_scaler, get_selected_features,
+    get_isolation_forest, get_kmeans, get_feature_medians,
+    get_fraud_percentiles, get_legit_percentiles, get_anomaly_score_range,
+    get_typology_cluster_map, get_shap_explainer,
+)
+from src.features.engineer import F3889_MAP, F3891_MAP, MISSING_FLAG_COLS
 from src.models.typology import CLUSTER_FEATURES
 from src.scoring.risk_fusion import TYPOLOGY_BOOST, assign_tier
 
 router = APIRouter()
 
-_lgbm_model = joblib.load("models/lgbm_model.pkl")
-_imputer = joblib.load("models/imputer.pkl")
-_scaler = joblib.load("models/scaler.pkl")
-_feature_names = joblib.load("models/selected_features.pkl")
-_iso_forest = joblib.load("saved_models/isolation_forest.pkl")
-_kmeans = joblib.load("saved_models/kmeans_typology.pkl")
 
-try:
-    _feature_medians = joblib.load("saved_models/feature_medians.pkl")
-except FileNotFoundError:
-    _feature_medians = pd.Series(0.0, index=_feature_names)
-
-try:
-    _fraud_percentiles = joblib.load("saved_models/fraud_percentiles.pkl")
-except FileNotFoundError:
-    _fraud_percentiles = _feature_medians
-
-try:
-    _legit_percentiles = joblib.load("saved_models/legit_percentiles.pkl")
-except FileNotFoundError:
-    _legit_percentiles = _feature_medians
-
-try:
-    _anomaly_range = joblib.load("saved_models/anomaly_score_range.pkl")
-except FileNotFoundError:
-    _anomaly_range = (-0.5, 0.5)
-
-try:
-    _cluster_map = joblib.load("saved_models/typology_cluster_map.pkl")
-except FileNotFoundError:
-    _cluster_map = {0: "Complicit Mule", 1: "Recruited Mule", 2: "Exploited Mule", 3: "Low Risk"}
-
-_imputer_cols = list(_imputer.feature_names_in_)
-_explainer = shap.TreeExplainer(_lgbm_model)
-
-
-def reload_state():
-    global _lgbm_model, _imputer, _scaler, _feature_names, _iso_forest, _kmeans
-    global _feature_medians, _anomaly_range, _cluster_map, _imputer_cols, _explainer
-    global _fraud_percentiles, _legit_percentiles
-
-    _lgbm_model = joblib.load("models/lgbm_model.pkl")
-    _imputer = joblib.load("models/imputer.pkl")
-    _scaler = joblib.load("models/scaler.pkl")
-    _feature_names = joblib.load("models/selected_features.pkl")
-    _iso_forest = joblib.load("saved_models/isolation_forest.pkl")
-    _kmeans = joblib.load("saved_models/kmeans_typology.pkl")
-    _feature_medians = joblib.load("saved_models/feature_medians.pkl")
-    try:
-        _fraud_percentiles = joblib.load("saved_models/fraud_percentiles.pkl")
-        _legit_percentiles = joblib.load("saved_models/legit_percentiles.pkl")
-    except FileNotFoundError:
-        _fraud_percentiles = _feature_medians
-        _legit_percentiles = _feature_medians
-    _anomaly_range = joblib.load("saved_models/anomaly_score_range.pkl")
-    _cluster_map = joblib.load("saved_models/typology_cluster_map.pkl")
-    _imputer_cols = list(_imputer.feature_names_in_)
-    _explainer = shap.TreeExplainer(_lgbm_model)
+def _not_ready():
+    raise HTTPException(status_code=503, detail="Models not yet loaded. Please upload a dataset first.")
 
 
 def _is_high_risk_input(features: dict) -> bool:
@@ -83,19 +32,19 @@ def _is_high_risk_input(features: dict) -> bool:
     )
 
 
-def _fill_value(col, fill_source):
+def _fill_value(col, fill_source, feature_medians):
     if col in fill_source.index:
         return fill_source[col]
-    if col in _feature_medians.index:
-        return _feature_medians[col]
+    if col in feature_medians.index:
+        return feature_medians[col]
     return 0.0
 
 
-def _build_input_row(features: dict) -> pd.DataFrame:
+def _build_input_row(features: dict, imputer_cols, feature_medians, fraud_pct, legit_pct) -> pd.DataFrame:
     row = {}
-    fill_source = _fraud_percentiles if _is_high_risk_input(features) else _legit_percentiles
+    fill_source = fraud_pct if _is_high_risk_input(features) else legit_pct
 
-    for col in _imputer_cols:
+    for col in imputer_cols:
         base = col[:-8] if col.endswith("_missing") else None
 
         if base is not None and base in MISSING_FLAG_COLS:
@@ -105,55 +54,70 @@ def _build_input_row(features: dict) -> pd.DataFrame:
                 x = float(features["F2678"])
                 row[col] = np.sign(x) * np.log1p(abs(x))
             else:
-                row[col] = _fill_value(col, fill_source)
+                row[col] = _fill_value(col, fill_source, feature_medians)
         elif col == "F3836_log":
             if "F3836" in features:
                 x = float(features["F3836"])
                 row[col] = np.sign(x) * np.log1p(abs(x))
             else:
-                row[col] = _fill_value(col, fill_source)
+                row[col] = _fill_value(col, fill_source, feature_medians)
         elif col == "F3889":
             if "F3889" in features:
                 val = features["F3889"]
                 row[col] = F3889_MAP.get(val, val) if isinstance(val, str) else val
             else:
-                row[col] = _fill_value(col, fill_source)
+                row[col] = _fill_value(col, fill_source, feature_medians)
         elif col == "F3891":
             if "F3891" in features:
                 val = features["F3891"]
                 row[col] = F3891_MAP.get(val, val) if isinstance(val, str) else val
             else:
-                row[col] = _fill_value(col, fill_source)
+                row[col] = _fill_value(col, fill_source, feature_medians)
         elif col in features:
             row[col] = features[col]
         else:
-            row[col] = _fill_value(col, fill_source)
+            row[col] = _fill_value(col, fill_source, feature_medians)
 
-    return pd.DataFrame([row], columns=_imputer_cols)
+    return pd.DataFrame([row], columns=imputer_cols)
 
 
 def _score(features: dict) -> dict:
     start = time.perf_counter()
 
-    raw_row = _build_input_row(features)
-    imputed = _imputer.transform(raw_row)
-    imputed_df = pd.DataFrame(imputed, columns=_imputer_cols)
-    scaled = _scaler.transform(imputed)
-    scaled_df = pd.DataFrame(scaled, columns=_imputer_cols)
+    lgbm_model = get_lgbm_model()
+    imputer = get_imputer()
+    scaler = get_scaler()
+    feature_names = get_selected_features()
+    iso_forest = get_isolation_forest()
+    kmeans = get_kmeans()
+    feature_medians = get_feature_medians()
+    fraud_pct = get_fraud_percentiles()
+    legit_pct = get_legit_percentiles()
+    anomaly_range = get_anomaly_score_range()
+    cluster_map = get_typology_cluster_map()
+    explainer = get_shap_explainer()
 
-    X_selected = scaled_df[_feature_names].fillna(0)
+    imputer_cols = list(imputer.feature_names_in_)
 
-    ml_proba = float(_lgbm_model.predict_proba(X_selected)[:, 1][0])
+    raw_row = _build_input_row(features, imputer_cols, feature_medians, fraud_pct, legit_pct)
+    imputed = imputer.transform(raw_row)
+    imputed_df = pd.DataFrame(imputed, columns=imputer_cols)
+    scaled = scaler.transform(imputed)
+    scaled_df = pd.DataFrame(scaled, columns=imputer_cols)
+
+    X_selected = scaled_df[feature_names].fillna(0)
+
+    ml_proba = float(lgbm_model.predict_proba(X_selected)[:, 1][0])
     ml_score = ml_proba * 100
 
-    raw_anomaly = _iso_forest.decision_function(X_selected)[0]
-    min_score, max_score = _anomaly_range
+    raw_anomaly = iso_forest.decision_function(X_selected)[0]
+    min_score, max_score = anomaly_range
     anomaly_score = 100 * (max_score - raw_anomaly) / (max_score - min_score)
     anomaly_score = float(np.clip(anomaly_score, 0, 100))
 
     cluster_row = imputed_df[CLUSTER_FEATURES]
-    cluster_id = int(_kmeans.predict(cluster_row)[0])
-    typology = _cluster_map.get(cluster_id, "Low Risk")
+    cluster_id = int(kmeans.predict(cluster_row)[0])
+    typology = cluster_map.get(cluster_id, "Low Risk")
     typology_boost = TYPOLOGY_BOOST.get(typology, 0)
 
     risk_score = ml_score * 0.75 + anomaly_score * 0.15 + typology_boost * 0.10 * (100 / 8)
@@ -168,7 +132,7 @@ def _score(features: dict) -> dict:
     risk_score = float(np.clip(risk_score, 0, 100))
     risk_tier = assign_tier(risk_score)
 
-    sv_raw = _explainer.shap_values(X_selected)
+    sv_raw = explainer.shap_values(X_selected)
     if isinstance(sv_raw, list):
         sv = sv_raw[1][0]
     elif sv_raw.ndim == 3:
@@ -181,7 +145,7 @@ def _score(features: dict) -> dict:
     for i in order:
         shap_val = float(sv[i])
         top_risk_factors.append({
-            "feature": _feature_names[i],
+            "feature": feature_names[i],
             "shap_value": shap_val,
             "account_value": float(X_selected.iloc[0, i]),
             "direction": "increases risk" if shap_val > 0 else "decreases risk",
@@ -218,6 +182,8 @@ def _score(features: dict) -> dict:
 def score_live(features: dict):
     try:
         return clean_record(_score(features))
+    except FileNotFoundError:
+        _not_ready()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to score account: {e}")
 
@@ -248,6 +214,10 @@ SAMPLE_HIGH_RISK = {
 def sample_payload():
     try:
         raw = pd.read_csv("data/DataSet.csv")
+    except FileNotFoundError:
+        _not_ready()
+
+    try:
         legit = raw[raw["F3924"] == 0] if "F3924" in raw.columns else raw
 
         sample_normal = {}
@@ -256,7 +226,7 @@ def sample_payload():
             if col in legit.columns:
                 sample_normal[col] = round(float(legit[col].mean()), 4)
 
-        for col, mapping in (("F3889", F3889_MAP), ("F3891", F3891_MAP)):
+        for col in ("F3889", "F3891"):
             if col in legit.columns:
                 sample_normal[col] = legit[col].mode().iloc[0]
 

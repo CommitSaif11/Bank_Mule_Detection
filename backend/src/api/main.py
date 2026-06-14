@@ -25,7 +25,12 @@ app.include_router(live.router, prefix="/api")
 
 @app.on_event("startup")
 async def on_startup():
-    startup_check()
+    try:
+        startup_check()
+    except Exception as e:
+        print(f"Startup warning: {e}")
+        print("API starting without pre-loaded models.")
+        print("Models will load on first request.")
 
 
 @app.get("/")

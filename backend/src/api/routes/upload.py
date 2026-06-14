@@ -4,9 +4,8 @@ from datetime import datetime, timezone
 import pandas as pd
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
-from src.api.routes import alerts, live, predict
 from src.pipeline.run_pipeline import run_full_pipeline, PipelineStepError
-from src.scoring import explainer
+from src.api.dependencies import clear_cache
 
 router = APIRouter()
 
@@ -45,10 +44,7 @@ async def upload_dataset(file: UploadFile = File(...)):
         return {"status": "error", "step": "pipeline", "message": str(e)}
 
     try:
-        predict.reload_state()
-        alerts.reload_state()
-        live.reload_state()
-        explainer.reload_state(data_path=UPLOAD_PATH)
+        clear_cache()
     except Exception as e:
         return {"status": "error", "step": "reload_state", "message": str(e)}
 

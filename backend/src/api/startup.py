@@ -30,6 +30,9 @@ def startup_check():
 
         raw_df = pd.read_csv(dataset_path)
         run_full_pipeline(raw_df)
+
+        from src.api.dependencies import clear_cache
+        clear_cache()
         print("Pipeline complete. Models ready.")
     else:
         print("Models found. API ready.")
