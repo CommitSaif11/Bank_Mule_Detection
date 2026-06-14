@@ -32,30 +32,7 @@ cd Bank_Mule_Detection
 
 ---
 
-## Step 2 — Install Python 3.10
-
-Check if you already have it:
-
-```bash
-python --version
-```
-
-If the version shown is **not** 3.10.x, install Python 3.10:
-
-- **Windows**: Download from https://www.python.org/downloads/release/python-31011/ and run the installer. During install, check **"Add Python to PATH"**.
-- **Mac** (using Homebrew):
-  ```bash
-  brew install python@3.10
-  ```
-- **Linux** (Ubuntu/Debian):
-  ```bash
-  sudo apt update
-  sudo apt install python3.10 python3.10-venv
-  ```
-
----
-
-## Step 3 — Install `uv`
+## Step 2 — Install `uv`
 
 `uv` is a fast Python package and virtual environment manager (replacement for `pip` + `venv`). We use it to create the backend environment and install dependencies.
 
@@ -82,9 +59,11 @@ After installation, **close and reopen your terminal**, then verify:
 uv --version
 ```
 
+> **Note on Python versions**: You do **not** need to manually install Python 3.10. `uv` can download and manage Python versions for you automatically — when you run `uv venv --python 3.10 .venv` in Step 3, `uv` will fetch Python 3.10 itself if it isn't already available on your system.
+
 ---
 
-## Step 4 — Backend setup
+## Step 3 — Backend setup
 
 Navigate into the `backend/` folder:
 
@@ -130,7 +109,7 @@ This installs FastAPI, LightGBM, XGBoost, SHAP, scikit-learn, imbalanced-learn, 
 
 ---
 
-## Step 5 — Add the dataset
+## Step 4 — Add the dataset
 
 The dataset is **not included** in this repository (too large for GitHub).
 
@@ -142,7 +121,7 @@ The dataset is **not included** in this repository (too large for GitHub).
 
 ---
 
-## Step 6 — Run the ML pipeline
+## Step 5 — Run the ML pipeline
 
 This step trains all models (LightGBM, XGBoost, Random Forest, Isolation Forest, KMeans) and generates every `.pkl` file the API needs. It must be run **once** before starting the backend (and again any time you upload a new dataset, if not done automatically via the Upload page).
 
@@ -158,7 +137,7 @@ This will take approximately **2-3 minutes**. When it finishes, you will see new
 
 ---
 
-## Step 7 — Start the backend server
+## Step 6 — Start the backend server
 
 Still inside `backend/`, with the virtual environment activated, run:
 
@@ -181,7 +160,7 @@ Keep this terminal window open — the backend must stay running.
 
 ---
 
-## Step 8 — Frontend setup
+## Step 7 — Frontend setup
 
 Open a **new terminal window** (leave the backend running in the first one).
 
@@ -213,13 +192,13 @@ The dashboard will load and connect automatically to the backend at `http://loca
 
 ---
 
-## Step 9 — Verify everything works
+## Step 8 — Verify everything works
 
 1. Open http://localhost:5173 — you should see the MuleNet dashboard with stats populated.
 2. Open http://localhost:8000/docs — you should see the FastAPI Swagger documentation.
 3. If the dashboard shows an error/empty state, confirm:
    - The backend terminal shows no errors and is still running.
-   - Step 6 (pipeline run) completed successfully and created `.pkl` files.
+   - Step 5 (pipeline run) completed successfully and created `.pkl` files.
 
 ---
 
