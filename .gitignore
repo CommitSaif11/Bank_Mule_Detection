@@ -1,0 +1,47 @@
+# ===== PYTHON =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.env
+.venv/
+venv/
+ENV/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# ===== MODEL FILES (too large + sensitive) =====
+backend/models/*.pkl
+backend/saved_models/*.pkl
+backend/saved_models/*.csv
+
+# ===== DATASET (too large for git) =====
+backend/data/*.csv
+backend/data/*.xlsx
+
+# ===== UPLOADED FILES =====
+backend/data/uploaded_dataset.csv
+
+# ===== NODE =====
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+
+# ===== LOGS =====
+*.log
+npm-debug.log*
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.swp
+
+# ===== VITE =====
+frontend/.env.production.local
+frontend/.env.development.local
