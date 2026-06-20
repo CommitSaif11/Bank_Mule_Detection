@@ -210,29 +210,31 @@ SAMPLE_HIGH_RISK = {
 }
 
 
+SAMPLE_NORMAL = {
+    "F115": 0.5905,
+    "F321": 1.1526,
+    "F527": 1.0007,
+    "F531": 1.4394,
+    "F670": 0.0903,
+    "F1692": 0.2611,
+    "F2082": 0.0209,
+    "F2122": 0.0457,
+    "F2582": 0.0765,
+    "F2678": 351.2545,
+    "F2737": 0.3018,
+    "F2956": 133.4583,
+    "F3043": 232.4531,
+    "F3836": -48941255.071,
+    "F3887": 103.7828,
+    "F3889": "G365D",
+    "F3891": "selfemployed",
+    "F3894": 34.328,
+}
+
+
 @router.get("/score/live/sample")
 def sample_payload():
-    try:
-        raw = pd.read_csv("data/DataSet.csv")
-    except FileNotFoundError:
-        _not_ready()
-
-    try:
-        legit = raw[raw["F3924"] == 0] if "F3924" in raw.columns else raw
-
-        sample_normal = {}
-        for col in ["F115", "F321", "F527", "F531", "F670", "F1692", "F2082", "F2122",
-                    "F2582", "F2678", "F2737", "F2956", "F3043", "F3836", "F3887", "F3894"]:
-            if col in legit.columns:
-                sample_normal[col] = round(float(legit[col].mean()), 4)
-
-        for col in ("F3889", "F3891"):
-            if col in legit.columns:
-                sample_normal[col] = legit[col].mode().iloc[0]
-
-        return clean_record({
-            "sample_normal": sample_normal,
-            "sample_high_risk": SAMPLE_HIGH_RISK,
-        })
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to build sample payload: {e}")
+    return clean_record({
+        "sample_normal": SAMPLE_NORMAL,
+        "sample_high_risk": SAMPLE_HIGH_RISK,
+    })
