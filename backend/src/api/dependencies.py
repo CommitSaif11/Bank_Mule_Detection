@@ -135,43 +135,20 @@ def get_shap_explainer():
 
 
 @lru_cache(maxsize=1)
-def get_explainer_state(data_path: str = None):
-    """Builds the processed feature matrix + SHAP values used for /api/explain reports."""
-    from src.preprocessing.clean import clean_dataset
-    from src.features.engineer import engineer_features
+def get_X_processed():
+    path = BASE / 'saved_models' / 'X_processed.pkl'
+    if not path.exists():
+        raise FileNotFoundError("X_processed.pkl not found. Run pipeline first.")
+    return joblib.load(path)
 
-    if data_path is None:
-        uploaded = BASE / 'data' / 'uploaded_dataset.csv'
-        data_path = str(uploaded) if uploaded.exists() else str(BASE / 'data' / 'DataSet.csv')
-    raw = pd.read_csv(path)
-    if "F3924" not in raw.columns:
-        raw = raw.copy()
-        raw["F3924"] = 0
 
-    cleaned_df, _ = clean_dataset(raw)
-    engineered_df = engineer_features(cleaned_df)
-
-    imputer = get_imputer()
-    scaler = get_scaler()
-    feature_names = get_selected_features()
-
-    X_full = engineered_df.drop(columns=["F3924"])
-    X_full_imputed = imputer.transform(X_full)
-    X_full_scaled = scaler.transform(X_full_imputed)
-    X_full_scaled = pd.DataFrame(X_full_scaled, columns=X_full.columns, index=X_full.index)
-    X_processed = X_full_scaled[feature_names]
-
-    explainer = get_shap_explainer()
-    raw_shap = explainer.shap_values(X_processed)
-    if isinstance(raw_shap, list):
-        shap_values = raw_shap[1]
-    elif raw_shap.ndim == 3:
-        shap_values = raw_shap[:, :, 1]
-    else:
-        shap_values = raw_shap
-
+@lru_cache(maxsize=1)
+def get_explainer_state():
     risk_scores = get_risk_scores().set_index("account_index")
     typology_labels = get_typology_labels()
+    feature_names = get_selected_features()
+    X_processed = get_X_processed()
+    shap_values = get_shap_values()
 
     return {
         "X_processed": X_processed,
@@ -200,4 +177,5 @@ def clear_cache():
     get_anomaly_score_range.cache_clear()
     get_typology_cluster_map.cache_clear()
     get_shap_explainer.cache_clear()
+    get_X_processed.cache_clear()
     get_explainer_state.cache_clear()

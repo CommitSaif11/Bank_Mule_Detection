@@ -19,10 +19,10 @@ ENV/
 .pytest_cache/
 .mypy_cache/
 
-# ===== MODEL FILES (too large + sensitive) =====
-backend/models/*.pkl
-backend/saved_models/*.pkl
-backend/saved_models/*.csv
+# ===== MODEL FILES =====
+# pkl/csv tracked for deployment (judges need instant startup)
+# Only ignore the backup folder and DataSet.csv
+backend/saved_models/saved_models_backup/
 
 # ===== DATASET (too large for git) =====
 backend/data/*.csv
