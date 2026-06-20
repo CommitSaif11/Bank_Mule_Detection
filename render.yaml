@@ -23,4 +23,4 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        value: https://mulenet-api.onrender.com
+        value: https://mulenet-api-t2sk.onrender.com
